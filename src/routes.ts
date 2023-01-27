@@ -1,11 +1,11 @@
 import dayjs from "dayjs";
-import { prisma } from "../lib/prisma";
+import { prisma } from "../lib/cache";
 import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { checkToken } from "./middleware/checktoken";
 import { auth } from "../lib/firebase";
 import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
-
+import redis from "../lib/redis";
 
 export async function appRoutes(app: FastifyInstance) {
 
@@ -79,9 +79,19 @@ export async function appRoutes(app: FastifyInstance) {
 
     const { date } = getDayParams.parse(request.query);
 
+
     const parsedDate = dayjs(date).startOf("day");
 
+
     const weekDay = dayjs(date).get("day");
+
+    const cacheKey = `day:${parsedDate.format('DD/MM/YYYY')}:${user_id}`;
+
+    const cachedDay = await redis.get(cacheKey);
+
+    if (cachedDay) {
+      return JSON.parse(cachedDay);
+    }
 
     const possibleHabits = await prisma.habit.findMany({
       where: {
@@ -99,6 +109,9 @@ export async function appRoutes(app: FastifyInstance) {
       },
     });
 
+
+
+
     const day = await prisma.day.findUnique({
       where: {
         date: parsedDate.toDate(),
@@ -111,6 +124,8 @@ export async function appRoutes(app: FastifyInstance) {
     const completedHabits: string[] | undefined = day?.dayHabits.map(dayHabit => {
       return dayHabit.habit_id;
     }) ?? [];
+
+    await redis.set(cacheKey, JSON.stringify({ possibleHabits, completedHabits }));
 
     return { possibleHabits, completedHabits };
   });
@@ -168,21 +183,32 @@ export async function appRoutes(app: FastifyInstance) {
       })
     }
 
+    await redis.del(`day:${dayjs().startOf("day").format('DD/MM/YYYY')}:${userId}`);
+    await redis.del(`summary:${userId}`);
   });
 
   app.get("/summary", async (request, response) => {
-    response.header("Access-Control-Allow-Origin", "*");
+
     const { userId } = await checkToken(request, response);
 
-    const summary = await prisma.$queryRaw`
-    SELECT
+    const cachedSummary = await redis.get(`summary:${userId}`);
+
+    if (cachedSummary) {
+      return JSON.parse(cachedSummary);
+    } else {
+      const summary = await prisma.$queryRaw`
+              SELECT
                 D.id,
                 D.date,
                 (
                     SELECT
                         cast(COUNT(*) as integer)
                     FROM day_habits DH
-                    WHERE DH.day_id = D.id
+                    JOIN habits H
+                        ON H.id = DH.habit_id
+                    WHERE
+                      DH.day_id = D.id
+                      AND H.user_id = ${userId}
                 ) as completed,
                 (
                     SELECT
@@ -198,8 +224,10 @@ export async function appRoutes(app: FastifyInstance) {
             FROM days D
           `
 
-    return summary;
+      await redis.set(`summary:${userId}`, JSON.stringify(summary), 'EX', 60 * 60 * 18);
 
+      return summary;
+    }
   });
 
   app.post('/resetpassword', async (request, response) => {
