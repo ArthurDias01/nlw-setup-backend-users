@@ -12,13 +12,13 @@ const app = Fastify();
 //   next();
 // });
 
-app.register(cors, {
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
-  allowedHeaders: ["Content-Type", "Authorization", "Origin", "X-Requested-With", "Accept", 'Access-Control-Allow-Origin'],
-  credentials: true,
-  optionsSuccessStatus: 200,
-});
+// app.register(cors, {
+//   origin: "*",
+//   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+//   allowedHeaders: ["Content-Type", "Authorization", "Origin", "X-Requested-With", "Accept", 'Access-Control-Allow-Origin'],
+//   credentials: true,
+//   optionsSuccessStatus: 200,
+// });
 app.register(appRoutes);
 
 
