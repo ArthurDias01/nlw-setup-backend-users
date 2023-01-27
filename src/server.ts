@@ -12,6 +12,7 @@ app.register(cors, {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "Origin", "X-Requested-With", "Accept"],
   credentials: true,
+  optionsSuccessStatus: 200,
 });
 app.register(appRoutes);
 
