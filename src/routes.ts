@@ -117,8 +117,6 @@ export async function appRoutes(app: FastifyInstance) {
 
   app.patch("/habits/:id/toggle", async (request, response) => {
 
-
-
     const { userId } = await checkToken(request, response);
 
     if (!userId) return response.status(401).send({ error: "Unauthorized" });
