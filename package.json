@@ -7,7 +7,9 @@
     "dev": "tsx watch src/server.ts",
     "test": "echo \"Error: no test specified\" && exit 1",
     "prisma-generate": "prisma generate",
-    "start": "npx prisma generate && tsx src/server.ts"
+    "start": "tsx src/server.ts",
+    "start:dev": "tsx watch src/server.ts",
+    "build": "npx prisma generate && tsup src"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +22,7 @@
     "firebase": "^9.16.0",
     "jwt-decode": "^3.1.2",
     "pg": "^8.8.0",
+    "tsup": "^6.5.0",
     "zod": "^3.20.2"
   },
   "devDependencies": {
