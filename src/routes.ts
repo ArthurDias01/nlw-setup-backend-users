@@ -4,29 +4,29 @@ import { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { checkToken } from "./middleware/checktoken";
 import { auth } from "../lib/firebase";
-import { createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth'
+import { sendPasswordResetEmail } from 'firebase/auth'
 import redis from "../lib/redis";
 
 export async function appRoutes(app: FastifyInstance) {
 
   app.post('/register', async (request, response) => {
+    // console.log('register', request.body);
     const createUserBody = z.object({
       email: z.string().email(),
-      password: z.string(),
+      firebaseId: z.string(),
     });
 
-    const { email, password } = createUserBody.parse(request.body);
+    const { email, firebaseId } = createUserBody.parse(request.body);
+    // console.log('email firebaseId', email, firebaseId);
 
-    if (!email || !password) {
+    if (!email || !firebaseId) {
       return response.status(422).send({ error: 'Missing email or password' });
     }
 
-    const userCredentialFirebase = await createUserWithEmailAndPassword(auth, email, password);
-
     const user = await prisma.user.create({
       data: {
+        firebaseId,
         email,
-        firebaseId: userCredentialFirebase.user.uid,
       }
     });
 
@@ -34,12 +34,12 @@ export async function appRoutes(app: FastifyInstance) {
   });
 
   app.post("/habits", async (request, response) => {
+
     const { userId: user_id } = await checkToken(request, response);
 
     const createHabitBody = z.object({
       title: z.string(),
       weekDays: z.array(z.number().min(0).max(6)),
-      userId: z.string(),
     });
 
     const { title, weekDays } = createHabitBody.parse(request.body);

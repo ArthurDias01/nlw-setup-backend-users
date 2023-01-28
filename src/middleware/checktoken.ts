@@ -31,7 +31,7 @@ export async function checkToken(request: FastifyRequest, response: FastifyReply
 
 
   if (!token) {
-    // console.log('>>>>>>>>>>>>>>>>>>>>>>>>>> no token')
+    console.log('>>>>>>>>>>>>>>>>>>>>>>>>>> no token')
     return response.status(401).send({ error: 'User not Found or token expired' });
   }
 
