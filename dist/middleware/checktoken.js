@@ -31,7 +31,7 @@ __export(checktoken_exports, {
 module.exports = __toCommonJS(checktoken_exports);
 var import_jwt_decode = __toESM(require("jwt-decode"));
 
-// lib/prisma.ts
+// lib/cache.ts
 var import_client = require("@prisma/client");
 var prisma = new import_client.PrismaClient({});
 
@@ -39,6 +39,7 @@ var prisma = new import_client.PrismaClient({});
 async function checkToken(request, response) {
   const token = request.headers.authorization?.replace("Bearer ", "");
   if (!token) {
+    console.log(">>>>>>>>>>>>>>>>>>>>>>>>>> no token");
     return response.status(401).send({ error: "User not Found or token expired" });
   }
   const decoded = (0, import_jwt_decode.default)(token);
