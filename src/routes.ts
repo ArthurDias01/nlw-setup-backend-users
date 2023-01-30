@@ -33,6 +33,34 @@ export async function appRoutes(app: FastifyInstance) {
     return { user };
   });
 
+  app.post('/checkuserexists', async (request, response) => {
+
+    const checkUserExistsBody = z.object({
+      email: z.string().email(),
+      firebaseId: z.string(),
+    });
+
+    const { email, firebaseId } = checkUserExistsBody.parse(request.body);
+
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      }
+    });
+
+    if (!user === undefined || user === null) {
+      await prisma.user.create({
+        data: {
+          firebaseId,
+          email,
+        }
+      })
+    }
+
+
+    return { user };
+  });
+
   app.post("/habits", async (request, response) => {
 
     const { userId: user_id } = await checkToken(request, response);
@@ -66,6 +94,12 @@ export async function appRoutes(app: FastifyInstance) {
       },
     });
 
+    const parsedDate = dayjs(today).startOf("day");
+    const cacheKey = `day:${parsedDate.format('DD/MM/YYYY')}:${user_id}`;
+
+    await redis.del(cacheKey);
+    await redis.del(`summary:${user_id}`);
+
     return { habit };
   });
 
@@ -86,7 +120,6 @@ export async function appRoutes(app: FastifyInstance) {
     const weekDay = dayjs(date).get("day");
 
     const cacheKey = `day:${parsedDate.format('DD/MM/YYYY')}:${user_id}`;
-
     const cachedDay = await redis.get(cacheKey);
 
     if (cachedDay) {
@@ -108,8 +141,6 @@ export async function appRoutes(app: FastifyInstance) {
         }
       },
     });
-
-
 
 
     const day = await prisma.day.findUnique({
@@ -217,14 +248,14 @@ export async function appRoutes(app: FastifyInstance) {
                     JOIN habits H
                         ON H.id = HWD.habit_id
                     WHERE
-                        HWD.week_day = date_part('dow', to_timestamp(extract(epoch from D.date) :: numeric / 1000.0))
+                        HWD.week_day = extract(dow from to_timestamp(date_part('epoch', D.date)::integer))
                         AND H.created_at <= D.date
                         AND H.user_id = ${userId}
                 ) as amount
             FROM days D
           `
 
-      await redis.set(`summary:${userId}`, JSON.stringify(summary), 'EX', 60 * 60 * 18);
+      await redis.set(`summary:${userId}`, JSON.stringify(summary), 'EX', 60 * 60 * 6);
 
       return summary;
     }
