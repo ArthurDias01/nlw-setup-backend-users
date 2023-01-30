@@ -33,7 +33,9 @@ var import_jwt_decode = __toESM(require("jwt-decode"));
 
 // lib/cache.ts
 var import_client = require("@prisma/client");
-var prisma = new import_client.PrismaClient({});
+var prisma = new import_client.PrismaClient({
+  log: ["query"]
+});
 
 // src/middleware/checktoken.ts
 async function checkToken(request, response) {

@@ -27,7 +27,9 @@ var import_dayjs = __toESM(require("dayjs"));
 
 // lib/cache.ts
 var import_client = require("@prisma/client");
-var prisma = new import_client.PrismaClient({});
+var prisma = new import_client.PrismaClient({
+  log: ["query"]
+});
 
 // src/routes.ts
 var import_zod = require("zod");
@@ -104,6 +106,29 @@ async function appRoutes(app3) {
     });
     return { user };
   });
+  app3.post("/checkuserexists", async (request, response) => {
+    const checkUserExistsBody = import_zod.z.object({
+      email: import_zod.z.string().email(),
+      firebaseId: import_zod.z.string()
+    });
+    const { email, firebaseId } = checkUserExistsBody.parse(request.body);
+    const user = await prisma.user.findUnique({
+      where: {
+        email
+      }
+    });
+    if (!user === void 0 || user === null) {
+      const newUser = await prisma.user.create({
+        data: {
+          firebaseId,
+          email
+        }
+      });
+      return { user: newUser };
+    } else {
+      return { user };
+    }
+  });
   app3.post("/habits", async (request, response) => {
     const { userId: user_id } = await checkToken(request, response);
     const createHabitBody = import_zod.z.object({
@@ -112,6 +137,7 @@ async function appRoutes(app3) {
     });
     const { title, weekDays } = createHabitBody.parse(request.body);
     const today = (0, import_dayjs.default)().startOf("day").toDate();
+    console.log("day", today);
     const habit = await prisma.habit.create({
       data: {
         title,
@@ -131,6 +157,11 @@ async function appRoutes(app3) {
         user_id
       }
     });
+    const parsedDate = (0, import_dayjs.default)(today).startOf("day");
+    const dayCacheKey = `day:${parsedDate.format("DD/MM/YYYY")}:${user_id}`;
+    const summaryCacheKey = `summary:${user_id}`;
+    await redis_default.del(dayCacheKey);
+    await redis_default.del(summaryCacheKey);
     return { habit };
   });
   app3.get("/day", async (request, response) => {
@@ -248,13 +279,13 @@ async function appRoutes(app3) {
                     JOIN habits H
                         ON H.id = HWD.habit_id
                     WHERE
-                        HWD.week_day = date_part('dow', to_timestamp(extract(epoch from D.date) :: numeric / 1000.0))
-                        AND H.created_at <= D.date
+                        HWD.week_day = extract(dow from to_timestamp(date_part('epoch', D.date)::integer))
+                        AND H.created_at <= D.date + interval '3 hours'
                         AND H.user_id = ${userId}
                 ) as amount
             FROM days D
           `;
-      await redis_default.set(`summary:${userId}`, JSON.stringify(summary), "EX", 60 * 60 * 18);
+      await redis_default.set(`summary:${userId}`, JSON.stringify(summary), "EX", 60 * 60 * 6);
       return summary;
     }
   });
@@ -290,7 +321,7 @@ app2.addHook("onSend", (req, res, payload, next) => {
   next();
 });
 app2.register(import_cors.default, {
-  origin: "*",
+  origin: ["https://habitsio.vercel.app", "https://habitsio-arthurdias01.vercel.app", /\.habitsio.vercel\.app$/],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "Origin", "X-Requested-With", "Accept", "Access-Control-Allow-Origin"],
   credentials: true,
