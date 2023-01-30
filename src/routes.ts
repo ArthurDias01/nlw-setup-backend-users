@@ -74,6 +74,8 @@ export async function appRoutes(app: FastifyInstance) {
 
     const today = dayjs().startOf("day").toDate();
 
+    console.log('day', today)
+
     const habit = await prisma.habit.create({
       data: {
         title,
@@ -95,10 +97,11 @@ export async function appRoutes(app: FastifyInstance) {
     });
 
     const parsedDate = dayjs(today).startOf("day");
-    const cacheKey = `day:${parsedDate.format('DD/MM/YYYY')}:${user_id}`;
+    const dayCacheKey = `day:${parsedDate.format('DD/MM/YYYY')}:${user_id}`;
+    const summaryCacheKey = `summary:${user_id}`;
 
-    await redis.del(cacheKey);
-    await redis.del(`summary:${user_id}`);
+    await redis.del(dayCacheKey);
+    await redis.del(summaryCacheKey);
 
     return { habit };
   });
@@ -249,7 +252,7 @@ export async function appRoutes(app: FastifyInstance) {
                         ON H.id = HWD.habit_id
                     WHERE
                         HWD.week_day = extract(dow from to_timestamp(date_part('epoch', D.date)::integer))
-                        AND H.created_at <= D.date
+                        AND H.created_at <= D.date + interval '3 hours'
                         AND H.user_id = ${userId}
                 ) as amount
             FROM days D
